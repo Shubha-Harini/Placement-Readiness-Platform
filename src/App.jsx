@@ -2,8 +2,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Landing from './pages/Landing';
 import DashboardLayout from './components/DashboardLayout';
 
+import Dashboard from './pages/Dashboard';
+
 // Placeholder components for dashboard routes
-const Dashboard = () => <div><h1 className="text-3xl font-bold mb-4">Dashboard Overview</h1><p className="text-gray-600">Welcome back! Here's your progress summary.</p></div>;
 const Practice = () => <div><h1 className="text-3xl font-bold mb-4">Practice Arena</h1><p className="text-gray-600">Solve coding challenges to improve your skills.</p></div>;
 const Assessments = () => <div><h1 className="text-3xl font-bold mb-4">Active Assessments</h1><p className="text-gray-600">Take tests to evaluate your readiness.</p></div>;
 const Resources = () => <div><h1 className="text-3xl font-bold mb-4">Study Resources</h1><p className="text-gray-600">Access guides, tutorials, and interview tips.</p></div>;
