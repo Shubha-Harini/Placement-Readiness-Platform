@@ -127,6 +127,13 @@ export function analyzeJD(company, role, jdText) {
     { title: "Round 4: Managerial / HR", items: ["Behavioral Scenarios (STAR method)", "Company Research", "Questions for the interviewer"] }
   ];
 
+  // Populate skill confidence map with default 'practice'
+  const skillConfidenceMap = {};
+  const allSkills = Object.values(extractedSkills).flat();
+  for (const skill of allSkills) {
+    skillConfidenceMap[skill] = 'practice';
+  }
+
   return {
     id: Date.now().toString(),
     createdAt: new Date().toISOString(),
@@ -137,6 +144,8 @@ export function analyzeJD(company, role, jdText) {
     plan,
     checklist,
     questions: questions.slice(0, 10),
-    readinessScore: score
+    baseScore: score,
+    skillConfidenceMap,
+    readinessScore: score // Will be superseded by dynamic calculation in UI
   };
 }

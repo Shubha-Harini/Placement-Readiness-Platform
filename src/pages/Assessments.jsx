@@ -37,7 +37,8 @@ const Assessments = () => {
     const newHistory = [result, ...history];
     localStorage.setItem('jdHistory', JSON.stringify(newHistory));
 
-    // Redirect to results
+    // Redirect to results explicitly
+    console.log("Analysis Output Generated:", result.id);
     navigate(`/results?id=${result.id}`);
   };
 

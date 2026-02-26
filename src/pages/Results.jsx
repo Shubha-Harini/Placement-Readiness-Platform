@@ -1,28 +1,35 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
-import { Target, CheckCircle2, ListChecks, CalendarDays, KeyRound, Building2, UserCircle, MessageSquareQuote } from 'lucide-react';
+import { Target, CheckCircle2, ListChecks, CalendarDays, KeyRound, Building2, UserCircle, MessageSquareQuote, Download, Copy, Info } from 'lucide-react';
 
 const Results = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [copiedId, setCopiedId] = useState(null);
 
-  const [result, setResult] = useState(() => {
+  const [result, setResult] = useState(null);
+
+  // Synchronize result state with actual URL changes dynamically
+  useEffect(() => {
     const saved = localStorage.getItem('jdHistory');
-    if (!saved) return null;
+    if (!saved) return;
 
     const history = JSON.parse(saved);
-    if (!history || history.length === 0) return null;
+    if (!history || history.length === 0) return;
 
     const searchParams = new URLSearchParams(location.search);
     const id = searchParams.get('id');
 
     if (id) {
       const match = history.find(item => item.id === id);
-      return match || history[0];
+      if (match) {
+        setResult(match);
+        return;
+      }
     }
-    return history[0];
-  });
+    setResult(history[0]);
+  }, [location.search]);
 
   if (!result) {
     return (
@@ -40,7 +47,65 @@ const Results = () => {
     );
   }
 
-  const { company, role, extractedSkills, plan, checklist, questions, readinessScore } = result;
+  const { company, role, extractedSkills, plan, checklist, questions, readinessScore, skillConfidenceMap = {}, baseScore } = result;
+
+  const handleToggleSkill = (skill) => {
+    const newMap = { ...skillConfidenceMap };
+    newMap[skill] = newMap[skill] === 'know' ? 'practice' : 'know';
+
+    let modifier = 0;
+    for (const val of Object.values(newMap)) {
+      if (val === 'know') modifier += 2;
+      // When practice, modifier is 0. This ensures the change is strictly +2 or -2 per toggle.
+    }
+
+    // Fallback to readinessScore for legacy records
+    const startingScore = typeof baseScore === 'number' ? baseScore : readinessScore;
+    const newScore = Math.max(0, Math.min(100, startingScore + modifier));
+
+    const newResult = {
+      ...result,
+      skillConfidenceMap: newMap,
+      readinessScore: newScore,
+      baseScore: startingScore
+    };
+
+    setResult(newResult);
+
+    const saved = localStorage.getItem('jdHistory');
+    if (saved) {
+      const history = JSON.parse(saved);
+      const updatedHistory = history.map(item => item.id === newResult.id ? newResult : item);
+      localStorage.setItem('jdHistory', JSON.stringify(updatedHistory));
+    }
+  };
+
+  const handleCopy = (id, text) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const copyPlan = () => handleCopy('plan', plan.map(item => `${item.day} - ${item.task}\n${item.detail}`).join('\n\n'));
+  const copyChecklist = () => handleCopy('checklist', checklist.map(round => `${round.title}\n` + round.items.map(i => `- ${i}`).join('\n')).join('\n\n'));
+  const copyQuestions = () => handleCopy('questions', questions.map((q, i) => `${i + 1}. ${q}`).join('\n\n'));
+
+  const downloadTxt = () => {
+    let content = `Placement Readiness Analysis\nCompany: ${company}\nRole: ${role}\nScore: ${readinessScore}/100\n\n`;
+    content += `--- 7-DAY PLAN ---\n${plan.map(item => `${item.day} - ${item.task}\n${item.detail}`).join('\n\n')}\n\n`;
+    content += `--- ROUND CHECKLIST ---\n${checklist.map(round => `${round.title}\n` + round.items.map(i => `- ${i}`).join('\n')).join('\n\n')}\n\n`;
+    content += `--- INTERVIEW QUESTIONS ---\n${questions.map((q, i) => `${i + 1}. ${q}`).join('\n\n')}`;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${company.replace(/\s+/g, '_')}_Analysis.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const weakSkills = Object.entries(skillConfidenceMap).filter(([_, val]) => val === 'practice').map(([skill]) => skill).slice(0, 3);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
@@ -48,14 +113,28 @@ const Results = () => {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-6 border-b border-gray-200">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 mb-2">Analysis Results</h1>
-          <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-gray-500">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 mb-4">Analysis Results</h1>
+          <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-gray-500 mb-4">
             <span className="flex items-center gap-1.5 px-3 py-1 bg-gray-100 rounded-full text-gray-700">
               <Building2 size={16} /> {company}
             </span>
             <span className="flex items-center gap-1.5 px-3 py-1 bg-gray-100 rounded-full text-gray-700">
               <UserCircle size={16} /> {role}
             </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={downloadTxt} className="px-3 py-1.5 flex items-center gap-1.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+              <Download size={15} /> Download Full TXT
+            </button>
+            <button onClick={copyPlan} className="px-3 py-1.5 flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors w-32 justify-center">
+              {copiedId === 'plan' ? <><CheckCircle2 size={15} className="text-green-500" /> <span className="text-green-600">Copied!</span></> : <><Copy size={15} /> 7-Day Plan</>}
+            </button>
+            <button onClick={copyChecklist} className="px-3 py-1.5 flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors w-32 justify-center">
+              {copiedId === 'checklist' ? <><CheckCircle2 size={15} className="text-green-500" /> <span className="text-green-600">Copied!</span></> : <><Copy size={15} /> Checklist</>}
+            </button>
+            <button onClick={copyQuestions} className="px-3 py-1.5 flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors w-32 justify-center">
+              {copiedId === 'questions' ? <><CheckCircle2 size={15} className="text-green-500" /> <span className="text-green-600">Copied!</span></> : <><Copy size={15} /> Questions</>}
+            </button>
           </div>
         </div>
 
@@ -86,12 +165,29 @@ const Results = () => {
               {Object.entries(extractedSkills).map(([category, skills]) => (
                 <div key={category} className="space-y-3">
                   <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">{category}</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {skills.map(skill => (
-                      <span key={skill} className="px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-md text-sm font-medium">
-                        {skill}
-                      </span>
-                    ))}
+                  <div className="flex flex-wrap gap-3">
+                    {skills.map(skill => {
+                      const mode = skillConfidenceMap[skill] || 'practice';
+                      const isKnow = mode === 'know';
+                      return (
+                        <button
+                          key={skill}
+                          onClick={() => handleToggleSkill(skill)}
+                          className={`group relative flex items-center justify-between gap-3 px-3.5 py-2 border rounded-xl text-sm font-semibold transition-all duration-200 outline-none focus:ring-2 focus:ring-offset-1 ${isKnow
+                              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:border-green-300 focus:ring-green-400'
+                              : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:ring-indigo-400 shadow-sm'
+                            }`}
+                        >
+                          {skill}
+                          <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md transition-colors ${isKnow
+                              ? 'bg-green-200/50 text-green-700 group-hover:bg-green-200'
+                              : 'bg-orange-100/80 text-orange-700 group-hover:bg-orange-200 group-hover:text-orange-800'
+                            }`}>
+                            {isKnow ? 'I know' : 'Need practice'}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -174,6 +270,24 @@ const Results = () => {
             ))}
           </CardContent>
         </Card>
+
+        {/* Action Next Box */}
+        {weakSkills.length > 0 && (
+          <Card className="bg-primary/5 border-primary/20 shadow-none">
+            <CardContent className="pt-6 flex flex-col md:flex-row items-start md:items-center gap-6">
+              <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
+                <Info size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">Recommended Next Action</h3>
+                <p className="text-gray-600 leading-relaxed">
+                  Focus heavily on <span className="font-bold text-gray-900">{weakSkills.join(', ')}</span>.
+                  Start the <span className="font-semibold text-primary">Day 1</span> plan now to build aggressive confidence before your interview.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
       </div>
 
