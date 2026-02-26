@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KodNest Premium Build System</title>
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+  <div class="app-layout">
+
+    <!-- TOP BAR -->
+    <header class="top-bar">
+      <div class="top-bar__brand">KODNEST PREMIUM BUILD SYSTEM</div>
+      <div class="top-bar__progress">Step 1 of 5</div>
+      <div class="top-bar__status">Draft</div>
+    </header>
+
+    <!-- CONTEXT HEADER -->
+    <section class="context-header">
+      <h1>Initialize Environment</h1>
+      <p>Configure the foundational systems before component generation.</p>
+    </section>
+
+    <!-- MAIN WORKING AREA -->
+    <main class="main-stage">
+
+      <!-- PRIMARY WORKSPACE (70%) -->
+      <article class="primary-workspace">
+
+        <!-- Empty State Example -->
+        <div class="state-box state-box--empty">
+          <h3>No Environment Configured</h3>
+          <p>Please provide the repository details to initialize the workspace context.</p>
+          <button class="btn btn-secondary">Connect Repository</button>
+        </div>
+
+        <!-- Working Component Example -->
+        <div class="card">
+          <h2 class="card-title">Project Configuration</h2>
+          <div class="form-group">
+            <label class="form-label" for="project-name">Project Name</label>
+            <input type="text" id="project-name" class="form-input" placeholder="e.g. Placement Platform V2">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="api-key">Auth Token</label>
+            <input type="password" id="api-key" class="form-input" placeholder="Enter secure token">
+          </div>
+        </div>
+
+        <!-- Error State Example -->
+        <div class="state-box state-box--error">
+          <h3>Connection Failed</h3>
+          <p>The provided authorization token was rejected by the server. Please verify your credentials in settings and
+            try again.</p>
+          <button class="btn btn-secondary">Retry Connection</button>
+        </div>
+
+      </article>
+
+      <!-- SECONDARY PANEL (30%) -->
+      <aside class="secondary-panel">
+        <p class="step-description">Establish the core layout and typography tokens before building functional
+          components.</p>
+
+        <div class="prompt-box">
+          &gt; generate foundation tokens
+        </div>
+
+        <button class="btn btn-secondary btn-full">Copy Instructions</button>
+        <button class="btn btn-primary btn-full">Build in Lovable</button>
+        <button class="btn btn-secondary btn-full">It Worked</button>
+        <button class="btn btn-secondary btn-full">Report Error</button>
+      </aside>
+
+    </main>
+
+  </div>
+
+  <!-- PERSISTENT PROOF FOOTER -->
+  <footer class="proof-footer">
+    <div class="proof-checklist">
+      <label class="proof-item">
+        <input type="checkbox"> UI Built
+        <input type="text" class="proof-input-field" placeholder="Provide GitHub Link">
+      </label>
+      <label class="proof-item">
+        <input type="checkbox"> Logic Working
+        <input type="text" class="proof-input-field" placeholder="Loom Video URL">
+      </label>
+      <label class="proof-item">
+        <input type="checkbox"> Test Passed
+        <input type="text" class="proof-input-field" placeholder="Test Run ID">
+      </label>
+      <label class="proof-item">
+        <input type="checkbox"> Deployed
+        <input type="text" class="proof-input-field" placeholder="Live URL">
+      </label>
+    </div>
+  </footer>
+
+</body>
+
+</html>
