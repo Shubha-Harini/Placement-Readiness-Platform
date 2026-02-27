@@ -7,10 +7,11 @@ import Dashboard from './pages/Dashboard';
 import Assessments from './pages/Assessments';
 import Results from './pages/Results';
 
-// Placeholder components for dashboard routes
-const Practice = () => <div><h1 className="text-3xl font-bold mb-4">Practice Arena</h1><p className="text-gray-600">Solve coding challenges to improve your skills.</p></div>;
-const Resources = () => <div><h1 className="text-3xl font-bold mb-4">Study Resources</h1><p className="text-gray-600">Access guides, tutorials, and interview tips.</p></div>;
-const Profile = () => <div><h1 className="text-3xl font-bold mb-4">Your Profile</h1><p className="text-gray-600">Manage your account and personalized settings.</p></div>;
+import Practice from './pages/Practice';
+import Resources from './pages/Resources';
+import Profile from './pages/Profile';
+import TestChecklist from './pages/TestChecklist';
+import Ship from './pages/Ship';
 
 function App() {
   return (
@@ -25,6 +26,8 @@ function App() {
           <Route path="/results" element={<Results />} />
           <Route path="/resources" element={<Resources />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/prp/07-test" element={<TestChecklist />} />
+          <Route path="/prp/08-ship" element={<Ship />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
