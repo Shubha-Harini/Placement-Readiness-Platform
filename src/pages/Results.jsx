@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
-import { Target, CheckCircle2, ListChecks, CalendarDays, KeyRound, Building2, UserCircle, MessageSquareQuote, Download, Copy, Info } from 'lucide-react';
+import { Target, CheckCircle2, ListChecks, CalendarDays, KeyRound, Building2, UserCircle, MessageSquareQuote, Download, Copy, Info, Building, Network, Lightbulb, Workflow } from 'lucide-react';
 
 const Results = () => {
   const location = useLocation();
@@ -48,6 +48,42 @@ const Results = () => {
   }
 
   const { company, role, extractedSkills, plan, checklist, questions, readinessScore, skillConfidenceMap = {}, baseScore } = result;
+
+  // Backward compatibility: Generate intel dynamically if viewing an old history entry
+  let displayIntel = result.companyIntel;
+  let displayRounds = result.rounds;
+
+  if (result.companyIntel === undefined && company && company.trim().length > 0) {
+    const enterpriseKeywords = ['amazon', 'infosys', 'tcs', 'google', 'microsoft', 'meta', 'apple', 'netflix', 'oracle', 'ibm', 'cisco', 'wipro', 'hcl', 'cognizant', 'flipkart', 'walmart', 'accenture', 'capgemini'];
+    let size = "Startup (<200)";
+    let focus = "Practical problem solving, rapid development, and stack depth.";
+    if (enterpriseKeywords.some(keyword => company.toLowerCase().includes(keyword))) {
+      size = "Enterprise (2000+)";
+      focus = "Structured DSA, System Design, and Core CS fundamentals.";
+    }
+    displayIntel = { name: company, industry: "Technology Services", size, focus };
+
+    displayRounds = [];
+    if (size.includes("Enterprise")) {
+      displayRounds = [
+        { round: "Round 1: Online Test", focus: "DSA + Aptitude", why: "Heavy focus on algorithmic problem solving and speed to filter large applicant pools." },
+        { round: "Round 2: Technical", focus: extractedSkills["Core CS"] ? "DSA + Core CS" : "Advanced DSA", why: "Whiteboard coding, time complexity analysis, and defining deep computer science concepts." },
+        { round: "Round 3: System Design & Projects", focus: Object.keys(extractedSkills).filter(k => k !== "Core CS").slice(0, 2).join(" & ") || "Tech Stack", why: "Architectural discussions, scalability, and deep dives into your previous resume projects." },
+        { round: "Round 4: HR / Behavioral", focus: "Leadership Principles", why: "Evaluation of culture fit and responses to behavioral STAR questions." }
+      ];
+    } else {
+      const mainStack = Object.keys(extractedSkills).filter(k => k !== "Core CS")[0] || "Core Stack";
+      displayRounds = [
+        { round: "Round 1: Practical Coding", focus: `Take-home assignment or Live Coding (${mainStack})`, why: "Startups care if you can build immediately. Expect to build a simple functional app or API." },
+        { round: "Round 2: Technical Deep Dive", focus: "System Architecture + Code Review", why: "Discussing how you structure code in the real world, optimization, and edge-case handling." },
+        { round: "Round 3: Culture Fit / Founder", focus: "Vision & Adaptability", why: "Assessing if you align with the fast-paced startup vision and can wear multiple hats." }
+      ];
+    }
+  } else if (result.companyIntel === undefined && (!company || company.trim().length === 0)) {
+    // Gracefully handle old records that had absolutely no company entered.
+    displayIntel = null;
+    displayRounds = null;
+  }
 
   const handleToggleSkill = (skill) => {
     const newMap = { ...skillConfidenceMap };
@@ -152,6 +188,70 @@ const Results = () => {
 
       <div className="flex flex-col gap-8">
 
+        {/* Company Intel Block */}
+        {displayIntel && (
+          <Card className="bg-gradient-to-br from-indigo-50/30 to-white border-indigo-100/60 shadow-sm">
+            <CardHeader className="pb-3 border-b border-indigo-50/50">
+              <div className="flex justify-between items-start">
+                <CardTitle className="flex items-center gap-2 text-indigo-900">
+                  <Building className="text-indigo-500" size={20} />
+                  Company Intel
+                </CardTitle>
+                <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-500 bg-indigo-50/80 px-2.5 py-1 rounded-md border border-indigo-100">
+                  <Lightbulb size={13} strokeWidth={2.5} /> Demo Mode (Heuristic)
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Company</p>
+                  <p className="text-sm font-semibold text-gray-900">{displayIntel.name}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Industry & Size</p>
+                  <p className="text-sm font-semibold text-gray-900">{displayIntel.industry} • <span className="text-indigo-600">{displayIntel.size}</span></p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Typical Hiring Focus</p>
+                  <p className="text-sm font-semibold text-gray-900 leading-snug">{displayIntel.focus}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Dynamic Round Mapping */}
+        {displayRounds && displayRounds.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3 border-b border-gray-50 bg-gray-50/30">
+              <CardTitle className="flex items-center gap-2">
+                <Workflow className="text-primary" size={20} />
+                Interview Round Mapping
+              </CardTitle>
+              <CardDescription>Predicted flow based on inferred company size and stack</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-0 relative before:absolute before:inset-0 before:ml-6 before:h-full before:w-0.5 before:bg-gray-100">
+                {displayRounds.map((roundObj, idx) => (
+                  <div key={idx} className="relative flex items-start gap-5 pb-6 last:pb-0">
+                    <div className="flex items-center justify-center w-12 h-12 rounded-full border-4 border-white bg-indigo-50 text-indigo-600 shrink-0 relative z-10 shadow-sm">
+                      <Network size={20} />
+                    </div>
+                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm w-full transition-all hover:border-indigo-100 hover:shadow-md">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+                        <h4 className="font-bold text-gray-900 text-sm">{roundObj.round}</h4>
+                        <span className="text-[10px] sm:text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100/50 px-2.5 py-1 rounded w-fit uppercase tracking-wider">{roundObj.focus}</span>
+                      </div>
+                      <p className="text-sm text-gray-600 leading-relaxed"><span className="font-semibold text-gray-800">Why this matters:</span> {roundObj.why}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Extracted Skills */}
         <Card>
           <CardHeader className="pb-3 border-b border-gray-50 bg-gray-50/30">
@@ -174,14 +274,14 @@ const Results = () => {
                           key={skill}
                           onClick={() => handleToggleSkill(skill)}
                           className={`group relative flex items-center justify-between gap-3 px-3.5 py-2 border rounded-xl text-sm font-semibold transition-all duration-200 outline-none focus:ring-2 focus:ring-offset-1 ${isKnow
-                              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:border-green-300 focus:ring-green-400'
-                              : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:ring-indigo-400 shadow-sm'
+                            ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:border-green-300 focus:ring-green-400'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:ring-indigo-400 shadow-sm'
                             }`}
                         >
                           {skill}
                           <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md transition-colors ${isKnow
-                              ? 'bg-green-200/50 text-green-700 group-hover:bg-green-200'
-                              : 'bg-orange-100/80 text-orange-700 group-hover:bg-orange-200 group-hover:text-orange-800'
+                            ? 'bg-green-200/50 text-green-700 group-hover:bg-green-200'
+                            : 'bg-orange-100/80 text-orange-700 group-hover:bg-orange-200 group-hover:text-orange-800'
                             }`}>
                             {isKnow ? 'I know' : 'Need practice'}
                           </span>

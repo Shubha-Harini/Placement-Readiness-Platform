@@ -134,6 +134,74 @@ export function analyzeJD(company, role, jdText) {
     skillConfidenceMap[skill] = 'practice';
   }
 
+  // 1) Company Intel Heuristics
+  let companyIntel = null;
+  let rounds = null;
+
+  if (company && company.trim().length > 0) {
+    const enterpriseKeywords = ['amazon', 'infosys', 'tcs', 'google', 'microsoft', 'meta', 'apple', 'netflix', 'oracle', 'ibm', 'cisco', 'wipro', 'hcl', 'cognizant', 'flipkart', 'walmart', 'accenture', 'capgemini'];
+
+    let companySize = "Startup (<200)";
+    let companyFocus = "Practical problem solving, rapid development, and stack depth.";
+    const compLower = (company || '').toLowerCase();
+
+    if (enterpriseKeywords.some(keyword => compLower.includes(keyword))) {
+      companySize = "Enterprise (2000+)";
+      companyFocus = "Structured DSA, System Design, and Core CS fundamentals.";
+    }
+
+    companyIntel = {
+      name: company,
+      industry: "Technology Services", // simple default
+      size: companySize,
+      focus: companyFocus
+    };
+
+    // 2) Round Mapping Engine
+    rounds = [];
+
+    if (companySize.includes("Enterprise")) {
+      rounds.push({
+        round: "Round 1: Online Test",
+        focus: "DSA + Aptitude",
+        why: "Heavy focus on algorithmic problem solving and speed to filter large applicant pools."
+      });
+      rounds.push({
+        round: "Round 2: Technical",
+        focus: extractedSkills["Core CS"] ? "DSA + Core CS" : "Advanced DSA",
+        why: "Whiteboard coding, time complexity analysis, and defining deep computer science concepts."
+      });
+      rounds.push({
+        round: "Round 3: System Design & Projects",
+        focus: Object.keys(extractedSkills).filter(k => k !== "Core CS").slice(0, 2).join(" & ") || "Tech Stack",
+        why: "Architectural discussions, scalability, and deep dives into your previous resume projects."
+      });
+      rounds.push({
+        round: "Round 4: HR / Behavioral",
+        focus: "Leadership Principles",
+        why: "Evaluation of culture fit and responses to behavioral STAR (Situation, Task, Action, Result) questions."
+      });
+    } else {
+      // Startup mapping
+      const mainStack = Object.keys(extractedSkills).filter(k => k !== "Core CS")[0] || "Core Stack";
+      rounds.push({
+        round: "Round 1: Practical Coding",
+        focus: `Take-home assignment or Live Coding (${mainStack})`,
+        why: "Startups care if you can build immediately. Expect to build a simple functional app or API."
+      });
+      rounds.push({
+        round: "Round 2: Technical Deep Dive",
+        focus: "System Architecture + Code Review",
+        why: "Discussing how you structure code in the real world, optimization, and edge-case handling."
+      });
+      rounds.push({
+        round: "Round 3: Culture Fit / Founder",
+        focus: "Vision & Adaptability",
+        why: "Assessing if you align with the fast-paced startup vision and can wear multiple hats."
+      });
+    }
+  }
+
   return {
     id: Date.now().toString(),
     createdAt: new Date().toISOString(),
@@ -141,6 +209,8 @@ export function analyzeJD(company, role, jdText) {
     role: role || 'General Role',
     jdText,
     extractedSkills,
+    companyIntel,
+    rounds,
     plan,
     checklist,
     questions: questions.slice(0, 10),
