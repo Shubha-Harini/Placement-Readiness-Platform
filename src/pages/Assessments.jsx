@@ -7,6 +7,8 @@ import { Briefcase, Building, FileText, History, Cpu, ChevronRight } from 'lucid
 const Assessments = () => {
   const navigate = useNavigate();
   const [history, setHistory] = useState([]);
+  const [warning, setWarning] = useState("");
+  const [shortWarned, setShortWarned] = useState(false);
 
   const [formData, setFormData] = useState({
     company: '',
@@ -17,18 +19,55 @@ const Assessments = () => {
   useEffect(() => {
     const saved = localStorage.getItem('jdHistory');
     if (saved) {
-      setHistory(JSON.parse(saved));
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const validHistory = [];
+          let hasCorruption = false;
+          for (const item of parsed) {
+            // Validate minimum required schema fields
+            if (item && item.id && item.jdText && typeof item.finalScore === 'number') {
+              validHistory.push(item);
+            } else {
+              hasCorruption = true;
+            }
+          }
+          setHistory(validHistory);
+          if (hasCorruption) {
+            setWarning("One saved entry couldn't be loaded. Create a new analysis.");
+          }
+        }
+      } catch (e) {
+        setWarning("One saved entry couldn't be loaded. Create a new analysis.");
+        setHistory([]);
+      }
     }
   }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'jdText') {
+      setWarning("");
+      setShortWarned(false);
+    }
   };
 
   const handleAnalyze = (e) => {
     e.preventDefault();
-    if (!formData.jdText.trim()) return;
+    setWarning(""); // Clear warnings on submit
+
+    if (!formData.jdText.trim()) {
+      setWarning("Please paste a job description to analyze.");
+      setShortWarned(false);
+      return;
+    }
+
+    if (formData.jdText.trim().length < 200 && !shortWarned) {
+      setWarning("This JD is too short to analyze deeply. Paste full JD for better output. Click analyze again to proceed anyway.");
+      setShortWarned(true);
+      return;
+    }
 
     // Run Analyzer
     const result = analyzeJD(formData.company, formData.role, formData.jdText);
@@ -109,16 +148,19 @@ const Assessments = () => {
                     name="jdText"
                     value={formData.jdText}
                     onChange={handleChange}
-                    required
                     placeholder="Paste the full job description here..."
-                    className="w-full border border-gray-200 rounded-lg px-4 py-3 h-48 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    className={`w-full border rounded-lg px-4 py-3 h-48 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all ${warning || (formData.jdText.trim().length > 0 && formData.jdText.trim().length < 200) ? 'border-amber-300 focus:border-amber-400 bg-amber-50/10' : 'border-gray-200 focus:border-primary'}`}
                   />
+                  {warning ? (
+                    <p className="text-sm text-red-500 font-medium animate-in fade-in pt-1">{warning}</p>
+                  ) : formData.jdText.trim().length > 0 && formData.jdText.trim().length < 200 ? (
+                    <p className="text-sm text-amber-600 font-medium animate-in fade-in pt-1">This JD is too short to analyze deeply. Paste full JD for better output.</p>
+                  ) : null}
                 </div>
 
                 <button
                   type="submit"
-                  disabled={!formData.jdText.trim()}
-                  className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
                 >
                   <Cpu size={18} />
                   Analyze Readiness
@@ -158,7 +200,7 @@ const Assessments = () => {
                           {record.role || 'General Role'}
                         </div>
                         <div className="shrink-0 flex items-center gap-1 text-primary font-black bg-primary/10 px-2 py-1 rounded text-sm">
-                          {record.readinessScore}
+                          {record.finalScore !== undefined ? record.finalScore : record.baseScore}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-6">

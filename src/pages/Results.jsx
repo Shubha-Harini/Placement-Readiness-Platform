@@ -47,7 +47,7 @@ const Results = () => {
     );
   }
 
-  const { company, role, extractedSkills, plan, checklist, questions, readinessScore, skillConfidenceMap = {}, baseScore } = result;
+  const { company, role, extractedSkills, plan7Days, checklist, questions, finalScore, skillConfidenceMap = {}, baseScore } = result;
 
   // Backward compatibility: Generate intel dynamically if viewing an old history entry
   let displayIntel = result.companyIntel;
@@ -95,14 +95,15 @@ const Results = () => {
       // When practice, modifier is 0. This ensures the change is strictly +2 or -2 per toggle.
     }
 
-    // Fallback to readinessScore for legacy records
-    const startingScore = typeof baseScore === 'number' ? baseScore : readinessScore;
+    // Fallback to finalScore or readinessScore for legacy records
+    const startingScore = typeof baseScore === 'number' ? baseScore : (result.finalScore || result.readinessScore || 0);
     const newScore = Math.max(0, Math.min(100, startingScore + modifier));
 
     const newResult = {
       ...result,
       skillConfidenceMap: newMap,
-      readinessScore: newScore,
+      finalScore: newScore,
+      updatedAt: new Date().toISOString(),
       baseScore: startingScore
     };
 
@@ -122,21 +123,22 @@ const Results = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const copyPlan = () => handleCopy('plan', plan.map(item => `${item.day} - ${item.task}\n${item.detail}`).join('\n\n'));
-  const copyChecklist = () => handleCopy('checklist', checklist.map(round => `${round.title}\n` + round.items.map(i => `- ${i}`).join('\n')).join('\n\n'));
+  const copyPlan = () => handleCopy('plan', (plan7Days || []).map(item => `${item.day} - ${item.focus}\n${item.tasks.join('\n- ')}`).join('\n\n'));
+  const copyChecklist = () => handleCopy('checklist', checklist.map(round => `${round.roundTitle || round.title}\n` + round.items.map(i => `- ${i}`).join('\n')).join('\n\n'));
   const copyQuestions = () => handleCopy('questions', questions.map((q, i) => `${i + 1}. ${q}`).join('\n\n'));
 
   const downloadTxt = () => {
-    let content = `Placement Readiness Analysis\nCompany: ${company}\nRole: ${role}\nScore: ${readinessScore}/100\n\n`;
-    content += `--- 7-DAY PLAN ---\n${plan.map(item => `${item.day} - ${item.task}\n${item.detail}`).join('\n\n')}\n\n`;
-    content += `--- ROUND CHECKLIST ---\n${checklist.map(round => `${round.title}\n` + round.items.map(i => `- ${i}`).join('\n')).join('\n\n')}\n\n`;
+    let content = `Placement Readiness Analysis\nCompany: ${company || 'Unknown'}\nRole: ${role || 'Unknown'}\nScore: ${finalScore || result.readinessScore}/100\n\n`;
+    content += `--- 7-DAY PLAN ---\n${(plan7Days || []).map(item => `${item.day} - ${item.focus}\n${item.tasks.join('\n- ')}`).join('\n\n')}\n\n`;
+    content += `--- ROUND CHECKLIST ---\n${checklist.map(round => `${round.roundTitle || round.title}\n` + round.items.map(i => `- ${i}`).join('\n')).join('\n\n')}\n\n`;
     content += `--- INTERVIEW QUESTIONS ---\n${questions.map((q, i) => `${i + 1}. ${q}`).join('\n\n')}`;
 
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${company.replace(/\s+/g, '_')}_Analysis.txt`;
+    const fileName = company ? company.replace(/\s+/g, '_') : 'Company';
+    link.download = `${fileName}_Analysis.txt`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -181,7 +183,7 @@ const Results = () => {
             <span className="text-xs text-gray-400 mt-0.5">Profile Match</span>
           </div>
           <div className="text-4xl font-bold text-primary tabular-nums">
-            {readinessScore}<span className="text-xl text-gray-400 font-medium">/100</span>
+            {finalScore !== undefined ? finalScore : result.readinessScore}<span className="text-xl text-gray-400 font-medium">/100</span>
           </div>
         </div>
       </div>
@@ -240,10 +242,10 @@ const Results = () => {
                     </div>
                     <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm w-full transition-all hover:border-indigo-100 hover:shadow-md">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
-                        <h4 className="font-bold text-gray-900 text-sm">{roundObj.round}</h4>
-                        <span className="text-[10px] sm:text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100/50 px-2.5 py-1 rounded w-fit uppercase tracking-wider">{roundObj.focus}</span>
+                        <h4 className="font-bold text-gray-900 text-sm">{roundObj.roundTitle || roundObj.round}</h4>
+                        <span className="text-[10px] sm:text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100/50 px-2.5 py-1 rounded w-fit uppercase tracking-wider">{roundObj.focusAreas ? roundObj.focusAreas.join(' + ') : roundObj.focus}</span>
                       </div>
-                      <p className="text-sm text-gray-600 leading-relaxed"><span className="font-semibold text-gray-800">Why this matters:</span> {roundObj.why}</p>
+                      <p className="text-sm text-gray-600 leading-relaxed"><span className="font-semibold text-gray-800">Why this matters:</span> {roundObj.whyItMatters || roundObj.why}</p>
                     </div>
                   </div>
                 ))}
@@ -262,35 +264,47 @@ const Results = () => {
           </CardHeader>
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {Object.entries(extractedSkills).map(([category, skills]) => (
-                <div key={category} className="space-y-3">
-                  <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">{category}</h4>
-                  <div className="flex flex-wrap gap-3">
-                    {skills.map(skill => {
-                      const mode = skillConfidenceMap[skill] || 'practice';
-                      const isKnow = mode === 'know';
-                      return (
-                        <button
-                          key={skill}
-                          onClick={() => handleToggleSkill(skill)}
-                          className={`group relative flex items-center justify-between gap-3 px-3.5 py-2 border rounded-xl text-sm font-semibold transition-all duration-200 outline-none focus:ring-2 focus:ring-offset-1 ${isKnow
-                            ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:border-green-300 focus:ring-green-400'
-                            : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:ring-indigo-400 shadow-sm'
-                            }`}
-                        >
-                          {skill}
-                          <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md transition-colors ${isKnow
-                            ? 'bg-green-200/50 text-green-700 group-hover:bg-green-200'
-                            : 'bg-orange-100/80 text-orange-700 group-hover:bg-orange-200 group-hover:text-orange-800'
-                            }`}>
-                            {isKnow ? 'I know' : 'Need practice'}
-                          </span>
-                        </button>
-                      );
-                    })}
+              {Object.entries(extractedSkills).filter(([_, skills]) => skills && skills.length > 0).map(([category, skills]) => {
+                const categoryNames = {
+                  coreCS: "Core CS",
+                  languages: "Languages",
+                  web: "Web",
+                  data: "Data",
+                  cloud: "Cloud / DevOps",
+                  testing: "Testing",
+                  other: "Other Skills",
+                  General: "General" // old history compatibility
+                };
+                return (
+                  <div key={category} className="space-y-3">
+                    <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">{categoryNames[category] || category}</h4>
+                    <div className="flex flex-wrap gap-3">
+                      {skills.map(skill => {
+                        const mode = skillConfidenceMap[skill] || 'practice';
+                        const isKnow = mode === 'know';
+                        return (
+                          <button
+                            key={skill}
+                            onClick={() => handleToggleSkill(skill)}
+                            className={`group relative flex items-center justify-between gap-3 px-3.5 py-2 border rounded-xl text-sm font-semibold transition-all duration-200 outline-none focus:ring-2 focus:ring-offset-1 ${isKnow
+                              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:border-green-300 focus:ring-green-400'
+                              : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:ring-indigo-400 shadow-sm'
+                              }`}
+                          >
+                            {skill}
+                            <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md transition-colors ${isKnow
+                              ? 'bg-green-200/50 text-green-700 group-hover:bg-green-200'
+                              : 'bg-orange-100/80 text-orange-700 group-hover:bg-orange-200 group-hover:text-orange-800'
+                              }`}>
+                              {isKnow ? 'I know' : 'Need practice'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -305,7 +319,29 @@ const Results = () => {
           </CardHeader>
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {plan.map((item, index) => (
+              {plan7Days ? plan7Days.map((item, index) => (
+                <div key={index} className="bg-white border flex flex-col p-4 rounded-xl shadow-sm border-gray-100 hover:border-primary/20 transition-colors">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-sm bg-primary/10 flex items-center justify-center text-primary font-bold text-xs border border-primary/20">
+                      {index + 1}
+                    </div>
+                    <h4 className="font-bold text-gray-900 text-sm whitespace-nowrap">
+                      {item.day}
+                    </h4>
+                  </div>
+                  <span className="text-xs font-bold text-primary bg-primary/5 self-start px-2 py-1 rounded tracking-wide mb-2 uppercase">
+                    {item.focus}
+                  </span>
+                  <div className="text-sm text-gray-600 leading-relaxed mt-auto space-y-1.5 pt-2">
+                    {item.tasks.map((t, i) => (
+                      <div key={i} className="flex items-start gap-1.5">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>{t}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )) : result.plan && result.plan.map((item, index) => (
                 <div key={index} className="bg-white border flex flex-col p-4 rounded-xl shadow-sm border-gray-100 hover:border-primary/20 transition-colors">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="flex-shrink-0 w-7 h-7 rounded-sm bg-primary/10 flex items-center justify-center text-primary font-bold text-xs border border-primary/20">
@@ -318,7 +354,7 @@ const Results = () => {
                   <span className="text-xs font-bold text-primary bg-primary/5 self-start px-2 py-1 rounded tracking-wide mb-2 uppercase">
                     {item.task}
                   </span>
-                  <p className="text-sm text-gray-600 leading-relaxed mt-auto">
+                  <p className="text-sm text-gray-600 leading-relaxed mt-auto pt-2">
                     {item.detail}
                   </p>
                 </div>
@@ -339,7 +375,7 @@ const Results = () => {
           <CardContent className="pt-4 divide-y divide-gray-100">
             {checklist.map((round, idx) => (
               <div key={idx} className="py-4 first:pt-2 last:pb-2">
-                <h4 className="font-semibold text-gray-900 mb-3">{round.title}</h4>
+                <h4 className="font-semibold text-gray-900 mb-3">{round.roundTitle || round.title}</h4>
                 <ul className="space-y-2.5">
                   {round.items.map((item, i) => (
                     <li key={i} className="flex items-start gap-2.5 text-sm text-gray-600">
